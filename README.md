@@ -136,8 +136,6 @@ SELECT * FROM PendingApplicationsView;
 
 #### Triggers
 
-### Triggers
-
 1. **Test automatic status update when adoption is created:**
 
 ```sql
@@ -163,7 +161,7 @@ VALUES (2, 2, 3, CURDATE());
 SELECT application_id, status FROM AdoptionApplication WHERE application_id = 2;
 ```
 
-### Events
+#### Events
 
 Events run automatically on schedule. To verify they exist:
 
