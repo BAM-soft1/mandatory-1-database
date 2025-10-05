@@ -9,6 +9,7 @@ services:
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       MYSQL_DATABASE: pet_shelter
+    command: --log_bin_trust_function_creators=1
     ports:
       - "3307:3306"
     volumes:
