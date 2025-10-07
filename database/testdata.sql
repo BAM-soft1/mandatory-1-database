@@ -78,6 +78,21 @@ INSERT INTO VaccinationType (vaccine_name, description, duration_months, require
 ('Leptospirosis', 'Bacterial disease vaccine for dogs', 12, FALSE),
 ('FeLV', 'Feline Leukemia Virus vaccine for cats', 12, FALSE);
 
+-- Link vaccines to species in the junction table
+INSERT INTO VaccineTypeSpecies (vaccine_type_id, species_id) VALUES
+-- Rabies for all species
+(1, 1),  -- Dogs
+(1, 2),  -- Cats  
+(1, 3),  -- Rabbits
+-- DHPP for dogs only
+(2, 1),  -- Dogs
+-- FVRCP for cats only
+(3, 2),  -- Cats
+-- Optional vaccines
+(4, 1),  -- Bordetella for dogs
+(5, 1),  -- Leptospirosis for dogs
+(6, 2);  -- FeLV for cats
+
 -- Insert Vaccinations (now using vaccine_type_id instead of vaccine_name)
 INSERT INTO Vaccination (animal_id, vet_id, vaccine_type_id, date_administered, next_due_date) VALUES
 (1, 1, 1, '2023-06-02', '2024-06-02'),  -- Buddy - Rabies
