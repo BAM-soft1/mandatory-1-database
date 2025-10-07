@@ -15,7 +15,8 @@ BEGIN
     DECLARE v_animal_id INT;
     DECLARE v_adopter_id INT;
     DECLARE v_animal_status VARCHAR(20);
-    
+    DECLARE v_has_required_vaccines BOOLEAN;
+
     -- Get application details and validate
     SELECT aa.animal_id, aa.user_id, a.status 
     INTO v_animal_id, v_adopter_id, v_animal_status
@@ -32,6 +33,11 @@ BEGIN
     
     IF v_animal_status != 'available' THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Animal is not available for adoption';
+    END IF;
+
+    SELECT HasRequiredVaccinations(v_animal_id) INTO v_has_required_vaccines;
+    IF v_has_required_vaccines = FALSE THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Cannot complete adoption: Animal does not have all required vaccinations';
     END IF;
     
     -- Create adoption (triggers handle status updates automatically)
@@ -99,6 +105,65 @@ BEGIN
 END //
 DELIMITER ;
 
+-- Procedure 4: Vaccinate animal with all required vaccines
+DROP PROCEDURE IF EXISTS VaccinateAnimalForAdoption;
+DELIMITER //
+CREATE PROCEDURE VaccinateAnimalForAdoption(
+    IN p_animal_id INT,
+    IN p_vet_id INT
+)
+BEGIN
+    DECLARE done INT DEFAULT FALSE;
+    DECLARE v_vaccine_type_id INT;
+    DECLARE v_duration_months INT;
+    DECLARE v_next_due_date DATE;
+    DECLARE v_animal_species_id INT;
+    DECLARE v_vaccination_count INT DEFAULT 0;
+    
+    -- Cursor to get all required vaccines for this animal's species
+    DECLARE vaccine_cursor CURSOR FOR
+        SELECT vt.vaccine_type_id, vt.duration_months
+        FROM VaccinationType vt
+        JOIN VaccineTypeSpecies vts ON vt.vaccine_type_id = vts.vaccine_type_id
+        WHERE vts.species_id = v_animal_species_id
+        AND vt.required_for_adoption = TRUE;
+    
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+    
+    -- Get animal's species
+    SELECT species_id INTO v_animal_species_id 
+    FROM Animal 
+    WHERE animal_id = p_animal_id;
+    
+    -- Check if animal exists
+    IF v_animal_species_id IS NULL THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Animal not found';
+    END IF;
+    
+    OPEN vaccine_cursor;
+    
+    vaccination_loop: LOOP
+        FETCH vaccine_cursor INTO v_vaccine_type_id, v_duration_months;
+        IF done THEN
+            LEAVE vaccination_loop;
+        END IF;
+        
+        -- Calculate next due date
+        SET v_next_due_date = DATE_ADD(CURDATE(), INTERVAL v_duration_months MONTH);
+        
+        -- Insert vaccination record
+        INSERT INTO Vaccination (animal_id, vet_id, vaccine_type_id, date_administered, next_due_date)
+        VALUES (p_animal_id, p_vet_id, v_vaccine_type_id, CURDATE(), v_next_due_date);
+        
+        SET v_vaccination_count = v_vaccination_count + 1;
+    END LOOP;
+    
+    CLOSE vaccine_cursor;
+    
+    SELECT CONCAT('Successfully administered ', v_vaccination_count, ' required vaccinations for animal ID: ', p_animal_id) AS result;
+END //
+DELIMITER ;
+
 -- ============================================================================
 -- FUNCTIONS
 -- ============================================================================
@@ -123,17 +188,27 @@ READS SQL DATA
 BEGIN
     DECLARE v_required_count INT;
     DECLARE v_actual_count INT;
+    DECLARE v_animal_species_id INT;
+
+    -- GET THE ANIMAL'S SPECIES (this line was missing!)
+    SELECT species_id INTO v_animal_species_id 
+    FROM Animal 
+    WHERE animal_id = p_animal_id;
     
-    -- Count required vaccines
+    -- Count required vaccines for this animal's species
     SELECT COUNT(*) INTO v_required_count
-    FROM VaccinationType
-    WHERE required_for_adoption = TRUE;
+    FROM VaccinationType vt
+    JOIN VaccineTypeSpecies vts ON vt.vaccine_type_id = vts.vaccine_type_id
+    WHERE vts.species_id = v_animal_species_id 
+    AND vt.required_for_adoption = TRUE;
     
-    -- Count how many required vaccines this animal has (that are still valid)
-    SELECT COUNT(DISTINCT vt.vaccine_type_id) INTO v_actual_count
+    -- Count actual vaccines this animal has received for required vaccines (that are still valid)
+    SELECT COUNT(DISTINCT v.vaccine_type_id) INTO v_actual_count
     FROM Vaccination v
     JOIN VaccinationType vt ON v.vaccine_type_id = vt.vaccine_type_id
-    WHERE v.animal_id = p_animal_id
+    JOIN VaccineTypeSpecies vts ON v.vaccine_type_id = vts.vaccine_type_id
+    WHERE v.animal_id = p_animal_id 
+    AND vts.species_id = v_animal_species_id
     AND vt.required_for_adoption = TRUE
     AND v.next_due_date >= CURDATE();
     

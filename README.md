@@ -78,10 +78,30 @@ SELECT @new_id;
 CALL GetAnimalMedicalHistory(1);
 ```
 
-3. **Complete an adoption:**
+3. **Try to complete adoption (will fail because animal does not have required vaccinations)**:
 
 ```sql
+-- See pending applications
 SELECT * FROM PendingApplicationsView;
+
+-- Try to complete adoption
+CALL CompleteAdoption(2, CURDATE());
+```
+
+4. **Vaccinate animal for adoption**:
+
+```sql
+-- Give animal 1 (Dog) all required vaccinations for adoption
+CALL VaccinateAnimalForAdoption(1, 1);
+```
+
+5. **Complete an adoption:**
+
+```sql
+-- See pending applications
+SELECT * FROM PendingApplicationsView;
+
+-- Complete adoption
 CALL CompleteAdoption(2, CURDATE());
 
 -- Verify the adoption was created
@@ -89,6 +109,9 @@ SELECT * FROM Adoption WHERE application_id = 2;
 
 -- Verify the animal status was updated
 SELECT * FROM Animal WHERE animal_id = 1;
+
+-- Verfiy the adoptionapplication status was updated
+SELECT * FROM AdoptionApplication WHERE application_id = 2;
 ```
 
 #### Stored functions
@@ -141,9 +164,18 @@ SELECT * FROM PendingApplicationsView;
 
 1. **Test automatic status update when adoption is created:**
 
+> NOTE: This also happened automatically when we completed an adoption via the stored procedure 'CompleteAdotion'
+> This is just for explicit showcasing purposes
+
 ```sql
--- Check current status
+-- Check current status of the animal
 SELECT animal_id, name, status FROM Animal WHERE animal_id = 2;
+
+-- Check the current status of the application
+SELECT application_id, status FROM AdoptionApplication WHERE application_id = 3;
+
+-- Vacciunate animal id 2 (cat) with all required vaccines
+CALL VaccinateAnimalForAdoption(2, 1);
 
 -- Create an adoption
 INSERT INTO Adoption (application_id, animal_id, adopter_user_id, adoption_date)
