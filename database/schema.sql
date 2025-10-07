@@ -98,6 +98,15 @@ CREATE TABLE Vaccination (
     FOREIGN KEY (vaccine_type_id) REFERENCES VaccinationType(vaccine_type_id) ON DELETE RESTRICT
 );
 
+-- Junction table to link VaccinationType to Species (many to many relationship)
+CREATE TABLE VaccineTypeSpecies (
+    vaccine_type_id INT NOT NULL,
+    species_id INT NOT NULL,
+    PRIMARY KEY (vaccine_type_id, species_id),
+    FOREIGN KEY (vaccine_type_id) REFERENCES VaccinationType(vaccine_type_id) ON DELETE CASCADE,
+    FOREIGN KEY (species_id) REFERENCES Species(species_id) ON DELETE CASCADE
+);
+
 -- Adoption Application table
 CREATE TABLE AdoptionApplication (
     application_id INT PRIMARY KEY AUTO_INCREMENT,
