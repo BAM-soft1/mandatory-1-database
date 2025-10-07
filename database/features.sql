@@ -14,26 +14,29 @@ CREATE PROCEDURE CompleteAdoption(
 BEGIN
     DECLARE v_animal_id INT;
     DECLARE v_adopter_id INT;
+    DECLARE v_animal_status VARCHAR(20);
     
-    -- Get animal and adopter info from application
-    SELECT animal_id, user_id INTO v_animal_id, v_adopter_id
-    FROM AdoptionApplication
-    WHERE application_id = p_application_id;
+    -- Get application details and validate
+    SELECT aa.animal_id, aa.user_id, a.status 
+    INTO v_animal_id, v_adopter_id, v_animal_status
+    FROM AdoptionApplication aa
+    JOIN Animal a ON aa.animal_id = a.animal_id
+    WHERE aa.application_id = p_application_id 
+    AND aa.status = 'pending' 
+    AND aa.is_active = TRUE;
     
-    -- Check if application exists and is approved
+    -- Validate data exists and animal is available
     IF v_animal_id IS NULL THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Application not found';
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Application already approved or does not exist';
     END IF;
     
-    -- Create adoption record
+    IF v_animal_status != 'available' THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Animal is not available for adoption';
+    END IF;
+    
+    -- Create adoption (triggers handle status updates automatically)
     INSERT INTO Adoption (application_id, animal_id, adopter_user_id, adoption_date)
     VALUES (p_application_id, v_animal_id, v_adopter_id, p_adoption_date);
-    
-    -- Update animal status
-    UPDATE Animal SET status = 'adopted' WHERE animal_id = v_animal_id;
-    
-    -- Update application status
-    UPDATE AdoptionApplication SET status = 'approved' WHERE application_id = p_application_id;
 END //
 DELIMITER ;
 

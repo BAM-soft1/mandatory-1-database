@@ -82,10 +82,13 @@ CALL GetAnimalMedicalHistory(1);
 
 ```sql
 SELECT * FROM PendingApplicationsView;
-CALL CompleteAdoption(1, CURDATE());
+CALL CompleteAdoption(2, CURDATE());
 
 -- Verify the adoption was created
-SELECT * FROM Adoption WHERE application_id = 1;
+SELECT * FROM Adoption WHERE application_id = 2;
+
+-- Verify the animal status was updated
+SELECT * FROM Animal WHERE animal_id = 1;
 ```
 
 #### Stored functions
@@ -140,25 +143,17 @@ SELECT * FROM PendingApplicationsView;
 
 ```sql
 -- Check current status
-SELECT animal_id, name, status FROM Animal WHERE animal_id = 1;
+SELECT animal_id, name, status FROM Animal WHERE animal_id = 2;
+
+-- Create an adoption
 INSERT INTO Adoption (application_id, animal_id, adopter_user_id, adoption_date)
-VALUES (1, 1, 2, CURDATE());
+VALUES (3, 2, 5, CURDATE());
 
-SELECT animal_id, name, status FROM Animal WHERE animal_id = 1;
-```
+-- Check animal status changed to adopted
+SELECT animal_id, name, status FROM Animal WHERE animal_id = 2;
 
-2. **Test automatic application status update:**
-
-```sql
--- Check application status before
-SELECT application_id, status FROM AdoptionApplication WHERE application_id = 2;
-
--- Create adoption
-INSERT INTO Adoption (application_id, animal_id, adopter_user_id, adoption_date)
-VALUES (2, 2, 3, CURDATE());
-
--- Verify application status changed to 'approved'
-SELECT application_id, status FROM AdoptionApplication WHERE application_id = 2;
+-- Check application status changed to approved
+SELECT application_id, status FROM AdoptionApplication WHERE application_id = 3;
 ```
 
 #### Events
